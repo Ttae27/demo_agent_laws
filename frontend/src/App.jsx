@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import axios from 'axios'
 import './App.css'
 
@@ -6,6 +6,50 @@ function App() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
+  const [chatMode, setChatMode] = useState('general') 
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const messagesEndRef = useRef(null)
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages])
+
+  const handleFileChange = (e) => {
+    if (e.target.files.length > 0) setSelectedFile(e.target.files[0])
+    else setSelectedFile(null)
+  }
+
+  const handleUpload = async () => {
+    if (!selectedFile) return alert("กรุณาเลือกไฟล์ PDF ก่อน")
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('file', selectedFile)
+    
+    const uploadingMsg = { sender: 'bot', text: `กำลังอัปโหลดไฟล์ "${selectedFile.name}"...` }
+    setMessages(prev => [...prev, uploadingMsg])
+
+    try {
+      await axios.post('http://localhost:8000/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      setMessages(prev => {
+        const newMessages = [...prev]
+        newMessages[newMessages.length - 1] = { sender: 'bot', text: `✅ อัปโหลดสำเร็จ! เริ่มถามคำถามจากเอกสารได้เลย` }
+        return newMessages
+      })
+      setSelectedFile(null)
+    } catch (error) {
+      console.error(error)
+      setMessages(prev => {
+        const newMessages = [...prev]
+        newMessages[newMessages.length - 1] = { sender: 'bot', text: `❌ อัปโหลดล้มเหลว` }
+        return newMessages
+      })
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const sendMessage = async () => {
     if (!input.trim()) return
@@ -15,47 +59,116 @@ function App() {
     setLoading(true)
 
     try {
-    const response = await axios.post('http://localhost:8000/conversation', 
-      {message: input
-})
+      const response = await axios.post('http://localhost:8000/conversation', {
+        message: input,
+        mode: chatMode 
+      })
 
-    const botText = response.data.message[0].text
+      const rawData = response.data.message
+      let botText = ""
 
-    const botMessage = { sender: 'bot', text: botText }
-    setMessages(prev => [...prev, botMessage])
+      if (typeof rawData === 'string') botText = rawData
+      else if (Array.isArray(rawData)) {
+        botText = rawData.filter(item => item.type === 'text').map(item => item.text).join('\n')
+        if (!botText) botText = JSON.stringify(rawData)
+      } else if (typeof rawData === 'object') {
+        botText = rawData.text || JSON.stringify(rawData)
+      } else {
+        botText = String(rawData)
+      }
 
-  } catch (error) {
-    console.error("Error:", error)
-    const errorMessage = { sender: 'bot', text: "เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อ Server ได้" }
-    setMessages(prev => [...prev, errorMessage])
-  } finally {
+      const botMessage = { sender: 'bot', text: botText }
+      setMessages(prev => [...prev, botMessage])
+
+    } catch (error) {
+      console.error("Error:", error)
+      const errorMessage = { sender: 'bot', text: "เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อ Server ได้" }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="container">
-      <h1>AI Chatbot</h1>
-
-      <div className="chat-box">
-        {messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.sender}`}>
-            <strong>{msg.sender === 'user' ? 'You' : 'AI'}:</strong> {msg.text}
+    <div className="app-container">
+      <div className="chat-interface">
+        <header className="chat-header">
+          <h1>AI Assistant</h1>
+          
+          {/* Mode Switcher */}
+          <div className="mode-switcher">
+            <button 
+              className={`mode-btn ${chatMode === 'general' ? 'active' : ''}`}
+              onClick={() => setChatMode('general')}
+            >
+              General
+            </button>
+            <button 
+              className={`mode-btn ${chatMode === 'document' ? 'active' : ''}`}
+              onClick={() => setChatMode('document')}
+            >
+              Document
+            </button>
           </div>
-        ))}
-        {loading && <div className="message bot">... กำลังพิมพ์ ...</div>}
-      </div>
+        </header>
 
-      <div className="input-area">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-          placeholder="พิมพ์ข้อความ..."
-          disabled={loading}
-        />
-        <button onClick={sendMessage} disabled={loading}>ส่ง</button>
+        {/* Upload Section (Conditional) */}
+        {chatMode === 'document' && (
+          <div className="upload-section fade-in">
+            <div className="file-input-wrapper">
+              <label htmlFor="pdf-upload" className="file-label">
+                {selectedFile ? (
+                  <span className="file-name">📄 {selectedFile.name}</span>
+                ) : (
+                  <span>📎 เลือกไฟล์ PDF</span>
+                )}
+                <input id="pdf-upload" type="file" accept=".pdf" onChange={handleFileChange} disabled={uploading} />
+              </label>
+              <button onClick={handleUpload} disabled={!selectedFile || uploading} className="action-btn upload-btn">
+                {uploading ? 'Scanning...' : 'Upload'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Chat Area */}
+        <div className="chat-box">
+          {messages.length === 0 && (
+            <div className="empty-state">
+              <p>สวัสดีครับ! 👋 {chatMode === 'general' ? 'ถามอะไรก็ได้เลยครับ' : 'อัปโหลดเอกสารแล้วถามได้เลย'}</p>
+            </div>
+          )}
+          {messages.map((msg, index) => (
+            <div key={index} className={`message-row ${msg.sender}`}>
+              <div className="message-bubble">
+                {msg.text}
+              </div>
+            </div>
+          ))}
+          {loading && (
+            <div className="message-row bot">
+              <div className="message-bubble loading">
+                <span className="dot"></span><span className="dot"></span><span className="dot"></span>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input Area */}
+        <div className="input-area">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+            placeholder={chatMode === 'general' ? "พิมพ์ข้อความ..." : "ถามเกี่ยวกับเอกสาร..."}
+            disabled={loading}
+          />
+          <button onClick={sendMessage} disabled={loading || !input.trim()} className="send-btn">
+            ➤
+          </button>
+        </div>
       </div>
     </div>
   )
