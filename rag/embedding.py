@@ -6,31 +6,30 @@ from qdrant_client import QdrantClient, models
 from qdrant_client.http.models import Distance, SparseVectorParams, VectorParams
 from dotenv import load_dotenv
 from model import get_embedding_model
+from typhoon_ocr import ocr_document
+import fitz
+import time
 import base64
 import os
 
 load_dotenv()
-MISTRAL_API_KEY = os.getenv('MISTRAL_API_KEY')
 
-def encode_byte(file):
-    try:
-        return base64.b64encode(file).decode('utf-8')
-    except:
-        return None
+def pdf_to_markdown(file_path) -> str:
+    pdf = fitz.open(file_path)
+    num_pages = pdf.page_count
+    pdf.close()
 
-def pdf_to_markdown_MistralOCR(file_data) -> str:
-    client = Mistral(api_key=MISTRAL_API_KEY)
-    base64_pdf = encode_byte(file_data)
-    ocr_response = client.ocr.process(
-        model="mistral-ocr-latest",
-        document={
-            "type": "document_url",
-            "document_url": f"data:application/pdf;base64,{base64_pdf}" 
-        },
-        include_image_base64=True
-    )
-    all_page = [page.markdown for page in ocr_response.pages]
-    return  all_page
+    all_page = []
+    # start = time.time()
+    for i in range(1, num_pages + 1):
+        markdown = ocr_document(
+            pdf_or_image_path=file_path,
+            page_num=i
+        )
+        all_page.append(markdown)
+    # end = time.time()
+    # print("use time:", end - start)
+    return all_page
 
 def to_document(markdowns: list[str]):
     docs = []
@@ -43,7 +42,7 @@ def to_document(markdowns: list[str]):
 
 def split_text(documents: list[Document]):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=700,  
+        chunk_size=1000,  
         chunk_overlap=100, 
         length_function=len,
     )
@@ -58,11 +57,11 @@ def split_text(documents: list[Document]):
 
     return chunks  
 
-def embeded_to_qdrant(file_data):
+def embeded_to_qdrant(file_path):
     try:
         sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
         embeddings = get_embedding_model()
-        markdown = pdf_to_markdown_MistralOCR(file_data)
+        markdown = pdf_to_markdown(file_path)
         docs = to_document(markdown) 
         split = split_text(docs)
 

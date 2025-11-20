@@ -38,7 +38,7 @@ def query_rag(query_text):
         sparse_vector_name="sparse"
     )
 
-    results = vector_store.similarity_search(query_text, k=4)
+    results = vector_store.similarity_search(query_text, k=8)
 
     # for res in results:
     #     print('-'*100)

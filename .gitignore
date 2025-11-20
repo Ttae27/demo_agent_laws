@@ -1,3 +1,5 @@
 .env
 __pycache__
 qdrant
+uploads
+test.py
