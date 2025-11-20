@@ -1,7 +1,7 @@
 from fastapi import FastAPI, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from rag.embedding import embeded_to_qdrant
-from graph import run_graph
+from graph import run_graph, pure_llm
 from pydantic import BaseModel
 
 app = FastAPI()
@@ -25,4 +25,9 @@ async def get_pdf(file: UploadFile):
 @app.post('/conversation')
 def call_agent(data: ChatInput):
     content = run_graph(data.message)
+    return {"message": content}
+
+@app.post('/llm')
+def call_llm(data: ChatInput):
+    content = pure_llm(data.message)
     return {"message": content}

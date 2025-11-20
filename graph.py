@@ -95,6 +95,11 @@ def run_graph(query: str):
 
     return result['messages'][-1].content
 
+def pure_llm(query):
+    query = [HumanMessage(content=query)]
+    result = llm.invoke(query)
+    return result.content
+
 # while True:
 #     user_input = input("You: ")
 #     if user_input.lower() == "exit":
