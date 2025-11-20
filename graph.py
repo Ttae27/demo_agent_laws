@@ -100,9 +100,9 @@ def pure_llm(query):
     result = llm.invoke(query)
     return result.content
 
-# while True:
-#     user_input = input("You: ")
-#     if user_input.lower() == "exit":
-#         break
-#     result = run_graph(user_input)
-#     print("Bot:", result[0]['text'])
+while True:
+    user_input = input("You: ")
+    if user_input.lower() == "exit":
+        break
+    result = run_graph(user_input)
+    print("Bot:", result[0]['text'])

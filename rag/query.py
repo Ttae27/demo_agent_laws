@@ -1,5 +1,5 @@
 from model import get_embedding_model
-from langchain_qdrant import QdrantVectorStore
+from langchain_qdrant import FastEmbedSparse, QdrantVectorStore, RetrievalMode
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.tools import tool
 
@@ -26,10 +26,16 @@ def query_rag(query_text):
 
     embeddings = get_embedding_model()
 
+    sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
+
     vector_store = QdrantVectorStore.from_existing_collection(
         embedding=embeddings,
+        sparse_embedding=sparse_embeddings,
+        retrieval_mode=RetrievalMode.HYBRID,
         collection_name="my_documents",
         url="http://localhost:6333",
+        vector_name="dense",
+        sparse_vector_name="sparse"
     )
 
     results = vector_store.similarity_search(query_text, k=4)

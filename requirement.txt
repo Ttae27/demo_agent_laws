@@ -12,3 +12,4 @@ langchain-qdrant
 torch
 langchain-google-vertexai
 langchain-text-splitters
+fastembed
