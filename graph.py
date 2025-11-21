@@ -15,7 +15,7 @@ all_tools = [query_rag, check_budget_discipline_s20]
 llm = get_llm()
 
 def query_agent(state: AgentState) -> AgentState:
-    query = HumanMessage(content=state['query'])
+    query = HumanMessage(content="[current]: " + state['query'])
     state["messages"] = [query]
     return state
 
@@ -27,7 +27,7 @@ def agent(state: AgentState) -> AgentState:
         llm_with_tools = llm.bind_tools(all_tools)
         
         system_content = """
-        You are an AI assistant specialized in answering questions.
+        You are an AI assistant specialized in answering questions based on [current] message.
         You have access to two tools: 'query_rag' and 'check_budget_discipline_s20'.
         
         [behavior rules]:

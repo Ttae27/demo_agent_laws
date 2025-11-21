@@ -29,7 +29,7 @@ def query_rag(query_text: str):
         print('-'*100)
         print(f"* {res.page_content}")
 
-    full_context = "\n\n---\n\n".join(retrieved_contents)
+    full_context = "\n\n---\n\n".join([str(doc.page_content) for doc in results])
     return full_context
 
 @tool
