@@ -15,12 +15,10 @@ function App() {
   const messagesEndRef = useRef(null)
   const textareaRef = useRef(null)
 
-  // Scroll ลงล่างสุดเสมอเมื่อมีข้อความใหม่
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  // Auto-resize Textarea: ทำงานทุกครั้งที่ input เปลี่ยน
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
@@ -41,6 +39,55 @@ function App() {
     }
   }
 
+  const checkEmbeddingStatus = async (filename) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 5000));
+
+      const res = await axios.post('http://localhost:8000/status');
+      const status = res.data.message;
+
+      console.log("Current Status:", status);
+
+      if (status === 'processing') {
+        setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = { 
+                sender: 'bot', 
+                text: `⏳ กำลังประมวลผลข้อมูล (Embedding)... \nสถานะ: ${status}` 
+            };
+            return newMessages;
+        });
+        
+        await checkEmbeddingStatus(filename);
+
+      } else if (status === 'done') {
+       
+        await axios.get('http://localhost:8000/reset_status');
+
+        setMessages(prev => {
+            const newMessages = [...prev];
+            newMessages[newMessages.length - 1] = { 
+                sender: 'bot', 
+                text: `✅ อัปโหลดและประมวลผล "${filename}" สำเร็จ!\nเริ่มถามคำถามจากเอกสารได้เลยครับ` 
+            };
+            return newMessages;
+        });
+
+        setCurrentUploadedFile(filename);
+        setSelectedFile(null);
+        setUploading(false);
+
+      } else {
+        setUploading(false);
+      }
+
+    } catch (error) {
+      console.error("Status check error:", error);
+      setMessages(prev => [...prev, { sender: 'bot', text: `❌ เกิดข้อผิดพลาดขณะเช็คสถานะ: ${error.message}` }]);
+      setUploading(false);
+    }
+  };
+
   const handleUpload = async () => {
     if (!selectedFile) return alert("กรุณาเลือกไฟล์ PDF ก่อน")
     setUploading(true)
@@ -48,22 +95,22 @@ function App() {
     const formData = new FormData()
     formData.append('file', selectedFile)
     
-    const uploadingMsg = { sender: 'bot', text: `⏳ กำลังอัปโหลดและอ่านไฟล์: "${selectedFile.name}"...` }
+    const uploadingMsg = { sender: 'bot', text: `⏳ กำลังอัปโหลดไฟล์: "${selectedFile.name}"...` }
     setMessages(prev => [...prev, uploadingMsg])
 
     try {
+    
       await axios.post('http://localhost:8000/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       
       setMessages(prev => {
         const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = { sender: 'bot', text: `✅ อัปโหลด "${selectedFile.name}" สำเร็จ!\nเริ่มถามคำถามได้เลยครับ` }
+        newMessages[newMessages.length - 1] = { sender: 'bot', text: `⏳ อัปโหลดเสร็จแล้ว กำลังเริ่มประมวลผล (Embedding)...` }
         return newMessages
       })
       
-      setCurrentUploadedFile(selectedFile.name)
-      setSelectedFile(null)
+      await checkEmbeddingStatus(selectedFile.name);
 
     } catch (error) {
       console.error(error)
@@ -72,7 +119,6 @@ function App() {
         newMessages[newMessages.length - 1] = { sender: 'bot', text: `❌ อัปโหลดล้มเหลว: ${error.message}` }
         return newMessages
       })
-    } finally {
       setUploading(false)
     }
   }
@@ -183,7 +229,7 @@ function App() {
                 />
               </label>
               <button onClick={handleUpload} disabled={!selectedFile || uploading} className="action-btn upload-btn">
-                {uploading ? 'Scanning...' : 'Upload'}
+                {uploading ? 'Processing...' : 'Upload'}
               </button>
             </div>
           </div>
