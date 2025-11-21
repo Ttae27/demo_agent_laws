@@ -86,7 +86,7 @@ def embeded_to_qdrant(file_path):
             client.create_collection(
                 collection_name="my_documents",
                 vectors_config={
-                    "dense": VectorParams(size=768, distance=Distance.COSINE),
+                    "dense": VectorParams(size=3072, distance=Distance.COSINE),
                 },
                 sparse_vectors_config={
                     "sparse": SparseVectorParams(index=models.SparseIndexParams(on_disk=False))
@@ -96,7 +96,7 @@ def embeded_to_qdrant(file_path):
             client.recreate_collection(
                 collection_name="my_documents",
                 vectors_config={
-                    "dense": VectorParams(size=768, distance=Distance.COSINE),
+                    "dense": VectorParams(size=3072, distance=Distance.COSINE),
                 },
                 sparse_vectors_config={
                     "sparse": SparseVectorParams(index=models.SparseIndexParams(on_disk=False))

@@ -6,17 +6,27 @@ function App() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
-  const [chatMode, setChatMode] = useState('general') 
+  const [chatMode, setChatMode] = useState('general')
   
   const [selectedFile, setSelectedFile] = useState(null)
-  const [currentUploadedFile, setCurrentUploadedFile] = useState(null) 
+  const [currentUploadedFile, setCurrentUploadedFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   
   const messagesEndRef = useRef(null)
+  const textareaRef = useRef(null)
 
+  // Scroll ลงล่างสุดเสมอเมื่อมีข้อความใหม่
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // Auto-resize Textarea: ทำงานทุกครั้งที่ input เปลี่ยน
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+    }
+  }, [input])
 
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
@@ -53,7 +63,6 @@ function App() {
       })
       
       setCurrentUploadedFile(selectedFile.name)
-  
       setSelectedFile(null)
 
     } catch (error) {
@@ -70,10 +79,12 @@ function App() {
 
   const sendMessage = async () => {
     if (!input.trim()) return
-    
+    if (loading) return
+
     const userMessage = { sender: 'user', text: input }
     setMessages(prev => [...prev, userMessage])
-    setInput('')
+    
+    setInput('') 
     setLoading(true)
 
     const historyPayload = messages.map(m => ({
@@ -112,6 +123,13 @@ function App() {
     }
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault(); 
+      sendMessage();
+    }
+  };
+
   return (
     <div className="app-container">
       <div className="chat-interface">
@@ -143,7 +161,6 @@ function App() {
           <div className="upload-section fade-in">
             <div className="file-input-wrapper">
               <label htmlFor="pdf-upload" className="file-label">
-                 {/* Logic การแสดงชื่อไฟล์ */}
                  {selectedFile ? (
                   <span className="file-name" style={{color: 'var(--primary)'}}>
                     📄 รออัปโหลด: {selectedFile.name}
@@ -196,15 +213,20 @@ function App() {
         </div>
 
         <div className="input-area">
-          <input
-            type="text"
+          <textarea
+            ref={textareaRef}
+            rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder={chatMode === 'general' ? "พิมพ์ข้อความ..." : "ถามเกี่ยวกับเอกสาร..."}
-            disabled={loading}
+            onChange={(e) => setInput(e.target.value)} 
+            onKeyDown={handleKeyDown}
+            placeholder="พิมพ์ข้อความ..."
+            className="chat-textarea"
           />
-          <button onClick={sendMessage} disabled={loading || !input.trim()} className="send-btn">
+          <button 
+            onClick={sendMessage} 
+            disabled={loading || !input.trim()} 
+            className="send-btn"
+          >
             ➤
           </button>
         </div>

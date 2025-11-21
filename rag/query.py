@@ -25,9 +25,16 @@ def query_rag(query_text: str):
 
     results = vector_store.similarity_search(query_text, k=6)
 
+    retrieved_contents = []
+
     for res in results:
         print('-'*100)
         print(f"* {res.page_content}")
+
+        page_num = res.metadata.get("page", "unknown")
+        content = f"[หน้า {page_num}] {res.page_content}"
+        
+        retrieved_contents.append(content)
 
     full_context = "\n\n---\n\n".join(retrieved_contents)
     return full_context
