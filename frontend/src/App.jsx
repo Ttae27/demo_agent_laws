@@ -12,6 +12,8 @@ function App() {
   const [currentUploadedFile, setCurrentUploadedFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   
+  const [processStatus, setProcessStatus] = useState('') 
+  
   const messagesEndRef = useRef(null)
   const textareaRef = useRef(null)
 
@@ -36,90 +38,74 @@ function App() {
     if (window.confirm("ต้องการล้างบทสนทนาทั้งหมดหรือไม่?")) {
       setMessages([])
       setInput('')
+      setProcessStatus('')
     }
   }
 
   const checkEmbeddingStatus = async (filename) => {
     try {
+     
       await new Promise(resolve => setTimeout(resolve, 5000));
 
       const res = await axios.post('http://localhost:8000/status');
       const status = res.data.message;
 
-      console.log("Current Status:", status);
+      console.log("Polling Status:", status);
 
       if (status === 'processing') {
-        setMessages(prev => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = { 
-                sender: 'bot', 
-                text: `⏳ กำลังประมวลผลข้อมูล (Embedding)... \nสถานะ: ${status}` 
-            };
-            return newMessages;
-        });
+      
+        setProcessStatus(`⏳ กำลังประมวลผลข้อมูล... (Status: ${status}) - คุณสามารถพิมพ์ถามได้เลย`);
         
         await checkEmbeddingStatus(filename);
 
       } else if (status === 'done') {
-       
+
         await axios.get('http://localhost:8000/reset_status');
 
-        setMessages(prev => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1] = { 
-                sender: 'bot', 
-                text: `✅ อัปโหลดและประมวลผล "${filename}" สำเร็จ!\nเริ่มถามคำถามจากเอกสารได้เลยครับ` 
-            };
-            return newMessages;
-        });
+        setProcessStatus('');
+        
+        setMessages(prev => [...prev, { 
+            sender: 'bot', 
+            text: `✅ ประมวลผลไฟล์ "${filename}" เสร็จสมบูรณ์!` 
+        }]);
 
         setCurrentUploadedFile(filename);
         setSelectedFile(null);
-        setUploading(false);
+        setUploading(false); 
 
       } else {
         setUploading(false);
+        setProcessStatus('');
       }
 
     } catch (error) {
       console.error("Status check error:", error);
-      setMessages(prev => [...prev, { sender: 'bot', text: `❌ เกิดข้อผิดพลาดขณะเช็คสถานะ: ${error.message}` }]);
+      setProcessStatus(`❌ เกิดข้อผิดพลาดในการเช็คสถานะ`);
       setUploading(false);
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile) return alert("กรุณาเลือกไฟล์ PDF ก่อน")
-    setUploading(true)
+    setUploading(true) 
+    setProcessStatus(`⏳ กำลังอัปโหลดไฟล์: "${selectedFile.name}"...`)
     
     const formData = new FormData()
     formData.append('file', selectedFile)
     
-    const uploadingMsg = { sender: 'bot', text: `⏳ กำลังอัปโหลดไฟล์: "${selectedFile.name}"...` }
-    setMessages(prev => [...prev, uploadingMsg])
-
     try {
-    
       await axios.post('http://localhost:8000/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
       
-      setMessages(prev => {
-        const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = { sender: 'bot', text: `⏳ อัปโหลดเสร็จแล้ว กำลังเริ่มประมวลผล (Embedding)...` }
-        return newMessages
-      })
-      
-      await checkEmbeddingStatus(selectedFile.name);
+      setProcessStatus(`⏳ อัปโหลดเสร็จแล้ว กำลังเริ่มประมวลผล...`)
+      checkEmbeddingStatus(selectedFile.name);
 
     } catch (error) {
       console.error(error)
-      setMessages(prev => {
-        const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = { sender: 'bot', text: `❌ อัปโหลดล้มเหลว: ${error.message}` }
-        return newMessages
-      })
+      setMessages(prev => [...prev, { sender: 'bot', text: `❌ อัปโหลดล้มเหลว: ${error.message}` }])
       setUploading(false)
+      setProcessStatus('')
     }
   }
 
@@ -157,13 +143,11 @@ function App() {
         botText = String(rawData)
       }
 
-      const botMessage = { sender: 'bot', text: botText }
-      setMessages(prev => [...prev, botMessage])
+      setMessages(prev => [...prev, { sender: 'bot', text: botText }])
 
     } catch (error) {
       console.error("Error:", error)
-      const errorMessage = { sender: 'bot', text: "เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อ Server ได้" }
-      setMessages(prev => [...prev, errorMessage])
+      setMessages(prev => [...prev, { sender: 'bot', text: "เกิดข้อผิดพลาด ไม่สามารถเชื่อมต่อ Server ได้" }])
     } finally {
       setLoading(false)
     }
@@ -203,6 +187,13 @@ function App() {
           </div>
         </header>
 
+        {/* --- ส่วนแสดงสถานะ Process แยกออกมาตรงนี้ --- */}
+        {processStatus && (
+            <div className="status-bar fade-in">
+                {processStatus}
+            </div>
+        )}
+
         {chatMode === 'document' && (
           <div className="upload-section fade-in">
             <div className="file-input-wrapper">
@@ -228,8 +219,9 @@ function App() {
                     onClick={(e) => { e.target.value = null }} 
                 />
               </label>
+              {/* ปุ่ม Upload จะ disable เฉพาะตอนกำลังอัปโหลดไฟล์จริงๆ แต่ตอน process embedding จะไม่ยุ่ง */}
               <button onClick={handleUpload} disabled={!selectedFile || uploading} className="action-btn upload-btn">
-                {uploading ? 'Processing...' : 'Upload'}
+                {uploading ? 'Working...' : 'Upload'}
               </button>
             </div>
           </div>

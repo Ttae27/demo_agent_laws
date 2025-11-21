@@ -359,3 +359,15 @@ body {
   color: #ef4444; 
   border-color: #ef4444;
 }
+
+.status-bar {
+  background-color: rgba(234, 179, 8, 0.1); 
+  color: #fbbf24; 
+  padding: 8px 15px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  border-bottom: 1px solid rgba(234, 179, 8, 0.2);
+  width: 100%;
+  animation: fadeIn 0.3s ease-in;
+}
