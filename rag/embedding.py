@@ -40,21 +40,29 @@ def to_document(markdowns: list[str]):
         ))
     return docs
 
-def split_text(documents: list[Document]):
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,  
-        chunk_overlap=100, 
-        length_function=len,
-    )
-    print(f"text splitter: {text_splitter}")
+def split_text(documents: list[Document], overlap: int = 500):
+    chunks = []
 
-    chunks = text_splitter.split_documents(documents)
-    for chunk in chunks:
-        page_num = chunk.metadata['page']
-        chunk.page_content = f'# page: {page_num}\n' + chunk.page_content
+    for i, doc in enumerate(documents):
+        page_num = doc.metadata['page']
 
-    print(f"Split {len(documents)} documents into {len(chunks)} chunks.")
+        prev_content = ""
+        if i > 0:
+            prev_content = documents[i - 1].page_content[-overlap:]
 
+        current_content = doc.page_content
+
+        next_content = ""
+        if i < len(documents) - 1:
+            next_content = documents[i + 1].page_content[:overlap]
+        
+        content = f"# page: {page_num}\n" + \
+        f"{prev_content}\n" + \
+        f"{current_content}\n" + \
+        f"{next_content}\n"
+
+        chunks.append(Document(page_content=content))
+    print(f"chunks: {len(chunks)}")
     return chunks  
 
 def embeded_to_qdrant(file_path):

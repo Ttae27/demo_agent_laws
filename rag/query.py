@@ -39,11 +39,11 @@ def query_rag(query_text):
         sparse_vector_name="sparse"
     )
 
-    results = vector_store.similarity_search(query_text, k=8)
+    results = vector_store.similarity_search(query_text, k=6)
 
-    # for res in results:
-    #     print('-'*100)
-    #     print(f"* {res.page_content}")
+    for res in results:
+        print('-'*100)
+        print(f"* {res.page_content}")
 
     context_text = "\n\n - -\n\n".join([str(doc.page_content) for doc in results])
 
