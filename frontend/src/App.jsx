@@ -7,8 +7,11 @@ function App() {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
   const [chatMode, setChatMode] = useState('general') 
+  
   const [selectedFile, setSelectedFile] = useState(null)
+  const [currentUploadedFile, setCurrentUploadedFile] = useState(null) 
   const [uploading, setUploading] = useState(false)
+  
   const messagesEndRef = useRef(null)
 
   useEffect(() => {
@@ -16,34 +19,48 @@ function App() {
   }, [messages])
 
   const handleFileChange = (e) => {
-    if (e.target.files.length > 0) setSelectedFile(e.target.files[0])
-    else setSelectedFile(null)
+    if (e.target.files.length > 0) {
+        setSelectedFile(e.target.files[0])
+    }
+  }
+
+  const handleReset = () => {
+    if (window.confirm("ต้องการล้างบทสนทนาทั้งหมดหรือไม่?")) {
+      setMessages([])
+      setInput('')
+    }
   }
 
   const handleUpload = async () => {
     if (!selectedFile) return alert("กรุณาเลือกไฟล์ PDF ก่อน")
     setUploading(true)
+    
     const formData = new FormData()
     formData.append('file', selectedFile)
     
-    const uploadingMsg = { sender: 'bot', text: `กำลังอัปโหลดไฟล์ "${selectedFile.name}"...` }
+    const uploadingMsg = { sender: 'bot', text: `⏳ กำลังอัปโหลดและอ่านไฟล์: "${selectedFile.name}"...` }
     setMessages(prev => [...prev, uploadingMsg])
 
     try {
       await axios.post('http://localhost:8000/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       })
+      
       setMessages(prev => {
         const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = { sender: 'bot', text: `✅ อัปโหลดสำเร็จ! เริ่มถามคำถามจากเอกสารได้เลย` }
+        newMessages[newMessages.length - 1] = { sender: 'bot', text: `✅ อัปโหลด "${selectedFile.name}" สำเร็จ!\nเริ่มถามคำถามได้เลยครับ` }
         return newMessages
       })
+      
+      setCurrentUploadedFile(selectedFile.name)
+  
       setSelectedFile(null)
+
     } catch (error) {
       console.error(error)
       setMessages(prev => {
         const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = { sender: 'bot', text: `❌ อัปโหลดล้มเหลว` }
+        newMessages[newMessages.length - 1] = { sender: 'bot', text: `❌ อัปโหลดล้มเหลว: ${error.message}` }
         return newMessages
       })
     } finally {
@@ -53,15 +70,22 @@ function App() {
 
   const sendMessage = async () => {
     if (!input.trim()) return
+    
     const userMessage = { sender: 'user', text: input }
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
 
+    const historyPayload = messages.map(m => ({
+        sender: m.sender,
+        text: m.text
+    }))
+
     try {
       const response = await axios.post('http://localhost:8000/conversation', {
         message: input,
-        mode: chatMode 
+        mode: chatMode,
+        history: historyPayload 
       })
 
       const rawData = response.data.message
@@ -70,7 +94,6 @@ function App() {
       if (typeof rawData === 'string') botText = rawData
       else if (Array.isArray(rawData)) {
         botText = rawData.filter(item => item.type === 'text').map(item => item.text).join('\n')
-        if (!botText) botText = JSON.stringify(rawData)
       } else if (typeof rawData === 'object') {
         botText = rawData.text || JSON.stringify(rawData)
       } else {
@@ -93,9 +116,13 @@ function App() {
     <div className="app-container">
       <div className="chat-interface">
         <header className="chat-header">
-          <h1>AI Assistant</h1>
+          <div style={{display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center'}}>
+             <h1>AI Assistant</h1>
+             <button onClick={handleReset} className="reset-btn" title="ล้างแชท">
+               🗑️ Reset
+             </button>
+          </div>
           
-          {/* Mode Switcher */}
           <div className="mode-switcher">
             <button 
               className={`mode-btn ${chatMode === 'general' ? 'active' : ''}`}
@@ -112,17 +139,31 @@ function App() {
           </div>
         </header>
 
-        {/* Upload Section (Conditional) */}
         {chatMode === 'document' && (
           <div className="upload-section fade-in">
             <div className="file-input-wrapper">
               <label htmlFor="pdf-upload" className="file-label">
-                {selectedFile ? (
-                  <span className="file-name">📄 {selectedFile.name}</span>
+                 {/* Logic การแสดงชื่อไฟล์ */}
+                 {selectedFile ? (
+                  <span className="file-name" style={{color: 'var(--primary)'}}>
+                    📄 รออัปโหลด: {selectedFile.name}
+                  </span>
+                ) : currentUploadedFile ? (
+                  <span className="file-name" style={{color: '#4ade80'}}>
+                    ✅ กำลังใช้: {currentUploadedFile}
+                  </span>
                 ) : (
-                  <span>📎 เลือกไฟล์ PDF</span>
+                  <span>📎 เลือกไฟล์ PDF ใหม่</span>
                 )}
-                <input id="pdf-upload" type="file" accept=".pdf" onChange={handleFileChange} disabled={uploading} />
+
+                <input 
+                    id="pdf-upload" 
+                    type="file" 
+                    accept=".pdf" 
+                    onChange={handleFileChange} 
+                    disabled={uploading} 
+                    onClick={(e) => { e.target.value = null }} 
+                />
               </label>
               <button onClick={handleUpload} disabled={!selectedFile || uploading} className="action-btn upload-btn">
                 {uploading ? 'Scanning...' : 'Upload'}
@@ -131,7 +172,6 @@ function App() {
           </div>
         )}
 
-        {/* Chat Area */}
         <div className="chat-box">
           {messages.length === 0 && (
             <div className="empty-state">
@@ -155,7 +195,6 @@ function App() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
         <div className="input-area">
           <input
             type="text"

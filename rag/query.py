@@ -5,28 +5,12 @@ from langchain_core.tools import tool
 from typing import Dict, Union
 
 @tool
-def query_rag(query_text):
+def query_rag(query_text: str): 
     """
-    Retrieve documents using RAG (Retrieval-Augmented Generation)
-    and generate a formatted prompt containing the most relevant content.
-
-    Args:
-        query_text (str): The user's question or search related to the documents.
-
-    Returns:
-        str: A fully formatted prompt containing top-ranked context documents and the original question.
-            This prompt can be passed to an LLM for final answer generation.
+    Retrieve relevant documents from the database.
     """
-
-    PROMPT_TEMPLATE = """
-    Answer the question based only on the following context:
-    {context}
-    - -
-    Answer the question based on the above context: {question}
-    """
-
+    
     embeddings = get_embedding_model()
-
     sparse_embeddings = FastEmbedSparse(model_name="Qdrant/bm25")
 
     vector_store = QdrantVectorStore.from_existing_collection(
@@ -39,18 +23,24 @@ def query_rag(query_text):
         sparse_vector_name="sparse"
     )
 
-    results = vector_store.similarity_search(query_text, k=8)
+    print(f"\n🔍 Searching for: {query_text}")
+    results = vector_store.similarity_search(query_text, k=8) 
+    
+    print(f"📄 Found {len(results)} chunks")
+    
+    if not results:
+        return "ไม่พบข้อมูลในเอกสาร (No documents found in database)"
 
-    # for res in results:
-    #     print('-'*100)
-    #     print(f"* {res.page_content}")
+    retrieved_contents = []
+    for i, doc in enumerate(results):
+        content = doc.page_content.replace("\n", " ") 
+        page = doc.metadata.get("page", "Unknown")
+        print(f"   [{i+1}] (Page {page}): {content[:100]}...") 
+        
+        retrieved_contents.append(f"[Source: Page {page}]\n{content}")
 
-    context_text = "\n\n - -\n\n".join([str(doc.page_content) for doc in results])
-
-    prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-    prompt = prompt_template.format(context=context_text, question=query_text)
-
-    return prompt
+    full_context = "\n\n---\n\n".join(retrieved_contents)
+    return full_context
 
 @tool
 def check_budget_discipline_s20(

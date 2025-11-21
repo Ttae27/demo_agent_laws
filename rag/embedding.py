@@ -20,15 +20,22 @@ def pdf_to_markdown(file_path) -> str:
     pdf.close()
 
     all_page = []
-    # start = time.time()
+    print(f"--- Processing {file_path} with {num_pages} pages ---") 
+    
     for i in range(1, num_pages + 1):
-        markdown = ocr_document(
-            pdf_or_image_path=file_path,
-            page_num=i
-        )
-        all_page.append(markdown)
-    # end = time.time()
-    # print("use time:", end - start)
+        try:
+            markdown = ocr_document(
+                pdf_or_image_path=file_path,
+                page_num=i
+            )
+            print(f"Page {i} content length: {len(markdown)}") 
+            if len(markdown) < 50:
+                print(f"Warning: Page {i} content seems too short: {markdown}")
+                
+            all_page.append(markdown)
+        except Exception as e:
+            print(f"Error OCR Page {i}: {e}") 
+
     return all_page
 
 def to_document(markdowns: list[str]):
@@ -71,7 +78,7 @@ def embeded_to_qdrant(file_path):
             client.create_collection(
                 collection_name="my_documents",
                 vectors_config={
-                    "dense": VectorParams(size=3072, distance=Distance.COSINE),
+                    "dense": VectorParams(size=768, distance=Distance.COSINE),
                 },
                 sparse_vectors_config={
                     "sparse": SparseVectorParams(index=models.SparseIndexParams(on_disk=False))
@@ -81,7 +88,7 @@ def embeded_to_qdrant(file_path):
             client.recreate_collection(
                 collection_name="my_documents",
                 vectors_config={
-                    "dense": VectorParams(size=3072, distance=Distance.COSINE),
+                    "dense": VectorParams(size=768, distance=Distance.COSINE),
                 },
                 sparse_vectors_config={
                     "sparse": SparseVectorParams(index=models.SparseIndexParams(on_disk=False))
