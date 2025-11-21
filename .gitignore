@@ -34,3 +34,7 @@ Thumbs.db
 *.log
 temp/
 *.pdf
+__pycache__
+qdrant
+uploads
+testing.py

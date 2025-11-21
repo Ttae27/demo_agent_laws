@@ -23,21 +23,11 @@ def query_rag(query_text: str):
         sparse_vector_name="sparse"
     )
 
-    print(f"\n🔍 Searching for: {query_text}")
-    results = vector_store.similarity_search(query_text, k=8) 
-    
-    print(f"📄 Found {len(results)} chunks")
-    
-    if not results:
-        return "ไม่พบข้อมูลในเอกสาร (No documents found in database)"
+    results = vector_store.similarity_search(query_text, k=6)
 
-    retrieved_contents = []
-    for i, doc in enumerate(results):
-        content = doc.page_content.replace("\n", " ") 
-        page = doc.metadata.get("page", "Unknown")
-        print(f"   [{i+1}] (Page {page}): {content[:100]}...") 
-        
-        retrieved_contents.append(f"[Source: Page {page}]\n{content}")
+    for res in results:
+        print('-'*100)
+        print(f"* {res.page_content}")
 
     full_context = "\n\n---\n\n".join(retrieved_contents)
     return full_context
