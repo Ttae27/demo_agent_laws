@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile
+from fastapi import FastAPI, UploadFile, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from rag.embedding import embeded_to_qdrant
 from graph import run_graph
@@ -21,8 +21,17 @@ class ChatInput(BaseModel):
     mode: str = "general"
     history: List[Dict[str, Any]] = []
 
+process = "idle"
+
+def process_embedding(file_path: str):
+    global process
+    embeded_to_qdrant(file_path)
+    process = "done"
+
 @app.post('/upload')
-async def get_pdf(file: UploadFile):
+async def get_pdf(file: UploadFile, background_task: BackgroundTasks):
+    global process
+    process = "processing"
     file_location = f"uploads/{file.filename}"
 
     for f in os.listdir("uploads"):
@@ -37,10 +46,22 @@ async def get_pdf(file: UploadFile):
 
     with open(file_location, "wb") as file_object:
         shutil.copyfileobj(file.file, file_object)
-    result = embeded_to_qdrant(file_location)
-    return {'message': result}
+
+    background_task.add_task(process_embedding, file_location)
+
+    return {'message': "waiting for embedd"}
 
 @app.post('/conversation')
-def call_agent(data: ChatInput):
+async def call_agent(data: ChatInput):
     content = run_graph(data.message, data.mode, data.history)
     return {"message": content}
+
+@app.post('/status')
+async def status():
+    return {"message": process}
+
+@app.get('/reset_status')
+async def reset_status():
+    global process
+    process = "idle"
+    return {"message": "complete reset"}
