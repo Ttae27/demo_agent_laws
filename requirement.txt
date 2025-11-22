@@ -14,3 +14,4 @@ langchain-google-vertexai
 langchain-text-splitters
 fastembed
 PyMuPDF
+typhoon_ocr
