@@ -53,6 +53,8 @@ async def get_pdf(file: UploadFile, background_task: BackgroundTasks):
 
 @app.post('/conversation')
 async def call_agent(data: ChatInput):
+    if process == "processing" and data.mode == "document":
+        return {"message": "กำลังประมวลผลเอกสารอยู่ ตอนนี้คุณสามารถคุยผ่าน general ได้"}
     content = run_graph(data.message, data.mode, data.history)
     return {"message": content}
 
