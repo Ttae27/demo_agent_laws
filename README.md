@@ -31,7 +31,7 @@
 OPENAI_API_KEY=""
 GOOGLE_API_KEY=""
 ```
-3. **ติดตั้ง Qrant**
+3. **ติดตั้ง Qdrant**
     * pull docker image 
         * `docker pull qdrant/qdrant`  
 
