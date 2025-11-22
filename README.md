@@ -25,8 +25,20 @@
 2.  **ตั้งค่า Environment:**
     * สร้างไฟล์ **`.env`** 
     * ใส่ API key ที่จำเป็นลงในไฟล์ `.env`
+    * ไปที่ `https://playground.opentyphoon.ai` เมื่อลงชื่อเข้าใช้แล้ว คลิก API key ที่มุมขวาบน แล้วนำมาใส่ใน `OPENAI_API_KEY`
+    
+```
+OPENAI_API_KEY=""
+GOOGLE_API_KEY=""
+```
+3. **ติดตั้ง Qrant**
+    * pull docker image 
+        * `docker pull qdrant/qdrant`  
 
-3.  **การติดตั้ง Dependencies และเปิดใช้งาน Virtual Environment:**
+    * run ที่ root folder
+        * `docker run -p 6333:6333 -v ./qdrant:/qdrant/storage qdrant/qdrant`
+
+4.  **การติดตั้ง Dependencies และเปิดใช้งาน Virtual Environment:**
     * ใช้เครื่องมือ `uv` ในการเริ่มต้น (Initialize):
         * `uv init` 
     * เปิดใช้งาน Virtual Environment:
