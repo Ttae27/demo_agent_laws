@@ -54,7 +54,7 @@ function App() {
 
       if (status === 'processing') {
       
-        setProcessStatus(`⏳ กำลังประมวลผลข้อมูล... (Status: ${status}) - คุณสามารถพิมพ์ถามได้เลย`);
+        setProcessStatus(`⏳ กำลังประมวลผลข้อมูล... (Status: ${status})`);
         
         await checkEmbeddingStatus(filename);
 
